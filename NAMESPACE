@@ -1,0 +1,4 @@
+useDynLib(RcppRegression)
+exportPattern("^[[:alpha:]]+")
+
+import(RcppArmadillo)

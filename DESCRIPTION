@@ -1,0 +1,15 @@
+Package: RcppRegression
+Type: Package
+Title: Multicore Regression
+Version: 1.0
+Date: 2013-11-28
+Author: Robert Smith <rws20@zips.uakron.edu>
+Maintainer: Robert Smith <rws20@zips.uakron.edu>
+Description: More about what it does (maybe more than one line)
+License: MIT
+Depends: Rcpp (>= 0.10.6), RcppArmadillo
+Imports: Rcpp, RcppArmadillo
+Suggests: testthat
+LazyData: true
+LinkingTo: Rcpp, RcppArmadillo
+RcppModules: Data
