@@ -1,0 +1,87 @@
+# RcppRegression Benchmark
+
+```{r setup,include=FALSE}
+
+library(RcppRegression)
+library(ggplot2)
+library(microbenchmark)
+
+load(file = "/home/rob/GitHub/RcppRegression/inst/tests/cereal.Rdata")
+
+opts_chunk$set(fig.path="figure/proj-",
+               warning=FALSE,error=FALSE,echo=TRUE,tidy=TRUE,
+               tidy.opts=list(keep.blank.lines=FALSE,width.cutoff=60),
+               dev='pdf',fig.height=7,fig.width=10)
+
+```
+
+## Small Matrix [4c x 11r]
+
+```{r b1,echo=TRUE,warning=FALSE,error=FALSE} 
+
+vec <- as.numeric(cereal[,2])
+mat <- as.matrix(cereal[,3:6])
+lm <- new(LS, vec, mat)
+
+
+res <- microbenchmark(
+	lm$BestSubset( ),
+	lm$ompBestSubset( ),
+	times = 1000L
+)
+
+print(res)
+
+autoplot(res)
+
+```
+
+## Medium Matrix [10c x 100r]
+
+```{r b2,echo=TRUE,warning=FALSE,error=FALSE} 
+
+set.seed(42)
+
+vec <- as.numeric(rnorm(100, 100, 25))
+mat <- matrix(rnorm(100*10, 25, 5), nrow = 100, ncol = 10)
+
+lm <- new(LS, vec, mat)
+length(vec)
+print( paste("ncol = ", ncol(mat), ", nrow = ", nrow(mat) ) )
+
+res <- microbenchmark(
+	lm$BestSubset( ),
+	lm$ompBestSubset( ),
+	times = 100L
+)
+
+print(res)
+
+autoplot(res)
+```
+
+## Large Matrix [25c x 100r]
+
+```{r b3,echo=TRUE,warning=FALSE,error=FALSE} 
+
+set.seed(424)
+
+vec <- as.numeric(rnorm(100, 100, 25))
+mat <- matrix(rnorm(100*20, 25, 5), nrow = 100, ncol = 20)
+
+lm <- new(LS, vec, mat)
+length(vec)
+print( paste("ncol = ", ncol(mat), ", nrow = ", nrow(mat) ) )
+
+### long benchmark
+res <- microbenchmark(
+	lm$BestSubset( ),
+	lm$ompBestSubset( ),
+	times = 5L
+)
+
+print(res)
+
+autoplot(res)
+
+```
