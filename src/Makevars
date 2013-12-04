@@ -1,11 +1,22 @@
+
+R_SITE=/home/rob/R/x86_64-pc-linux-gnu-library/3.0
+
+PKG_LIBS =			-fopenmp	$(BLAS_LIBS) $(FLIBS) $(LAPACK_LIBS) \
+								$(shell "Rscript" -e "Rcpp:::LdFlags()")
+
+PKG_CPPFLAGS = 	-std=c++0x -I../inst/include -I/usr/include -fopenmp \
+								-I${R_HOME}/include -I${R_SITE}/Rcpp/include \
+								-I${R_SITE}/RcppArmadillo/include  -I. -DNDEBUG 
+
 ## Use the R_HOME indirection to support installations of multiple R version
-
-PKG_LIBS        = `$(R_HOME)/bin/Rscript -e "Rcpp:::LdFlags()"` $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -fopenmp -lgomp 
-
-PKG_CPPFLAGS    += -std=c++0x -I../inst/include -I/usr/include -fopenmp 
-
+## 
+## PKG_LIBS        = `$(R_HOME)/bin/Rscript -e "Rcpp:::LdFlags()"` \
+##										$(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -fopenmp -lgomp 
+## PKG_CPPFLAGS		+= -Wall
+## PKG_CPPFLAGS   += -std=c++0x -I../inst/include -I/usr/include -fopenmp 
+## 
 ## As an alternative, one can also add this code in a file 'configure'
-##
+## ## PKG_CPPFLAGS		+= -O3
 ##    PKG_LIBS=`${R_HOME}/bin/Rscript -e "Rcpp:::LdFlags()"`
 ## 
 ##    sed -e "s|@PKG_LIBS@|${PKG_LIBS}|" \

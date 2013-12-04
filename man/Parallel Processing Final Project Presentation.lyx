@@ -1,0 +1,336 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass beamer
+\begin_preamble
+\usetheme{PaloAlto}
+\end_preamble
+\use_default_options true
+\begin_modules
+knitr
+\end_modules
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman lmodern
+\font_sans helvet
+\font_typewriter courier
+\font_default_family sfdefault
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics pdftex
+\default_output_format pdf2
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize letterpaper
+\use_geometry true
+\use_amsmath 0
+\use_esint 0
+\use_mhchem 0
+\use_mathdots 0
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 2.5cm
+\topmargin 2.5cm
+\rightmargin 2.5cm
+\bottommargin 2.5cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Statistics in Parallel
+\end_layout
+
+\begin_layout Author
+Robert Smith
+\end_layout
+
+\begin_layout Section
+Background
+\end_layout
+
+\begin_layout BeginFrame
+Background
+\end_layout
+
+\begin_layout Itemize
+Linear Regression attempts to fit a straight line to a data set based on
+ 
+\begin_inset Formula $n$
+\end_inset
+
+ predictors.
+\end_layout
+
+\begin_layout Itemize
+Ordinary Least Squares equation to find the coefficients of the predictors:
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(X^{T}X\right){}^{-1}*X^{T}Y
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $Y$
+\end_inset
+
+ is the response column vector, with 
+\begin_inset Formula $m$
+\end_inset
+
+ rows
+\end_layout
+
+\begin_layout Itemize
+In general, modern computers and linear algebra libraries have little trouble
+ evaluating this expression
+\end_layout
+
+\begin_layout EndFrame
+
+\end_layout
+
+\begin_layout Section
+Problem
+\end_layout
+
+\begin_layout BeginFrame
+Problem
+\end_layout
+
+\begin_layout Itemize
+It is difficult to minimize the number of appropriate predictors while maximizin
+g the fit of the model
+\end_layout
+
+\begin_layout Itemize
+To test every possible combination of models can be quite computationally
+ intensive
+\begin_inset Formula 
+\[
+\sum_{k=1}^{n}\frac{n!}{k!(n-k)!}=2^{n}-1
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+Stepwise regression was first proposed in 1960 to help the computer hardware
+ of the time solve these problems
+\end_layout
+
+\begin_layout Itemize
+The speedup is significant because it avoids checking a significant proportion
+ of the possible models
+\end_layout
+
+\begin_layout Itemize
+Stepwise regression often fits very poor regression models
+\end_layout
+
+\begin_layout EndFrame
+
+\end_layout
+
+\begin_layout BeginFrame
+Best Subsets Regression
+\end_layout
+
+\begin_layout Itemize
+Today, we have far better hardware available
+\end_layout
+
+\begin_layout Itemize
+Best Subsets regression seeks to fit all possible combinations
+\end_layout
+
+\begin_layout Itemize
+While theoretically, it can be used on any number of predictors, it is generally
+ limited to 40 predictors
+\begin_inset Formula 
+\[
+2^{40}-1=1,099,511,627,776
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+\begin_inset Formula $ $
+\end_inset
+
+Over a trillion operations for one problem
+\end_layout
+
+\begin_layout Itemize
+No operation depends on the previous one
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Sub-operations are data-dependent, so there are limited opportunities for
+ further parallelization
+\end_layout
+
+\end_deeper
+\end_deeper
+\begin_layout Itemize
+This is an embarrassingly parallel problem
+\end_layout
+
+\begin_layout EndFrame
+
+\end_layout
+
+\begin_layout Section
+Implementation
+\end_layout
+
+\begin_layout BeginFrame
+Numerical Implementation
+\end_layout
+
+\begin_layout Itemize
+C++ implementation, with classes to track the base data, linear models &
+ fits, and current combinations
+\end_layout
+
+\begin_layout Itemize
+Utilized the Armadillo C++ Linear Algebra library
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Optimized & includes many complex linear algebra operations as simple functions
+\end_layout
+
+\begin_layout Itemize
+Can link to many different BLAS and LAPACK instances
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Parallelization occurs at the 'choose k' level of the combinations
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Example: given 20 predictors, there will be 20 total parallel operations
+\end_layout
+
+\begin_layout Itemize
+Further parallelization is intended in the future, but so far this has no
+ trouble keeping 4 cores busy
+\end_layout
+
+\end_deeper
+\begin_layout EndFrame
+
+\end_layout
+
+\begin_layout BeginFrame
+The R Project
+\end_layout
+
+\begin_layout Itemize
+Open Source interpreted programming language focused on Statistics
+\end_layout
+
+\begin_layout Itemize
+Written with a combination of C and FORTRAN 77
+\end_layout
+
+\begin_layout Itemize
+Widely used for applied statistics in academia & industry
+\end_layout
+
+\begin_layout Itemize
+R was developed as an inherently single-threaded application
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Developing around this requirement was a challenge
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Rcpp library offers a C++ API for the R Project
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Allows for developers to utilize the full STL (including C++11!) and utilize
+ just about any C++ library
+\end_layout
+
+\begin_layout Itemize
+Most importantly, it offers access to pthreads, openMP, MPI and even CUDA
+\end_layout
+
+\end_deeper
+\begin_layout EndFrame
+
+\end_layout
+
+\begin_layout BeginFrame
+Demo & Questions
+\end_layout
+
+\begin_layout Standard
+\align center
+Thank you!
+\end_layout
+
+\begin_layout EndFrame
+
+\end_layout
+
+\end_body
+\end_document

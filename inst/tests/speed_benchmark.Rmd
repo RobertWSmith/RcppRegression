@@ -11,7 +11,7 @@ load(file = "/home/rob/GitHub/RcppRegression/inst/tests/cereal.Rdata")
 opts_chunk$set(fig.path="figure/proj-",
                warning=FALSE,error=FALSE,echo=TRUE,tidy=TRUE,
                tidy.opts=list(keep.blank.lines=FALSE,width.cutoff=60),
-               dev='pdf',fig.height=7,fig.width=10)
+               dev='CairoSVG',fig.height=7,fig.width=10)
 
 ```
 
@@ -36,14 +36,14 @@ autoplot(res)
 
 ```
 
-## Medium Matrix [10c x 100r]
+## Medium Matrix [10c x 1000r]
 
 ```{r b2,echo=TRUE,warning=FALSE,error=FALSE} 
 
 set.seed(42)
 
-vec <- as.numeric(rnorm(100, 100, 25))
-mat <- matrix(rnorm(100*10, 25, 5), nrow = 100, ncol = 10)
+vec <- as.numeric(rnorm(1000, 100, 25))
+mat <- matrix(rnorm(1000*10, 25, 5), nrow = 1000, ncol = 10)
 
 lm <- new(LS, vec, mat)
 length(vec)
@@ -58,30 +58,58 @@ res <- microbenchmark(
 print(res)
 
 autoplot(res)
+
+rm(list = ls())
+
 ```
 
-## Large Matrix [25c x 100r]
+## Large Matrix [25c x 1000r]
 
 ```{r b3,echo=TRUE,warning=FALSE,error=FALSE} 
 
 set.seed(424)
 
-vec <- as.numeric(rnorm(100, 100, 25))
-mat <- matrix(rnorm(100*20, 25, 5), nrow = 100, ncol = 20)
+vec <- as.numeric(rnorm(1000, 100, 25))
+mat <- matrix(rnorm(1000*15, 25, 5), nrow = 1000, ncol = 15)
 
 lm <- new(LS, vec, mat)
-length(vec)
-print( paste("ncol = ", ncol(mat), ", nrow = ", nrow(mat) ) )
 
 ### long benchmark
 res <- microbenchmark(
 	lm$BestSubset( ),
 	lm$ompBestSubset( ),
-	times = 5L
+	times = 10L
 )
 
 print(res)
 
 autoplot(res)
+
+rm(list = ls())
+
+```
+
+```{r b4,echo=TRUE,warning=FALSE,error=FALSE}
+# NOT RUN
+# 
+# set.seed(424)
+# 
+# vec <- as.numeric(rnorm(100, 100, 25))
+# mat <- matrix(rnorm(100*20, 25, 5), nrow = 100, ncol = 20)
+# 
+# lm <- new(LS, vec, mat)
+# 
+# ### long benchmark
+# res <- microbenchmark(
+# 	lm$BestSubset( ),
+# 	lm$ompBestSubset( ),
+# 	times = 5L
+# )
+# 
+# print(res)
+# 
+# autoplot(res)
+# 
+# rm(list = ls())
 
 ```

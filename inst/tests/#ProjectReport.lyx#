@@ -1,0 +1,427 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass amsart
+\use_default_options true
+\begin_modules
+theorems-ams
+eqs-within-sections
+figs-within-sections
+knitr
+\end_modules
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman times
+\font_sans helvet
+\font_typewriter courier
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize 12
+\spacing single
+\use_hyperref false
+\papersize letterpaper
+\use_geometry true
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 2.5cm
+\topmargin 2.5cm
+\rightmargin 2.5cm
+\bottommargin 2.5cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\bullet 0 1 31 -1
+\bullet 1 1 25 -1
+\bullet 2 1 13 -1
+\bullet 3 0 9 -1
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+RcppRegression
+\begin_inset Newline newline
+\end_inset
+
+Best Subsets Regression with openMP Parallel Processing
+\end_layout
+
+\begin_layout Author
+Robert Smith
+\end_layout
+
+\begin_layout Part
+Introduction
+\end_layout
+
+\begin_layout Standard
+The objectives of this project are to create a library to extend the 
+\begin_inset CommandInset href
+LatexCommand href
+name "R Project for Statistical Computing"
+target "http://www.r-project.org/"
+
+\end_inset
+
+ and add the ability for users with no knowledge of parallel processing
+ to implement and utilize parallel best subset regression algorithms.
+ Currently, best subsets regression is considered inappropriate for data
+ sets with
+\begin_inset Formula $>40$
+\end_inset
+
+ predictor variables due to best subsets regression being required to evaluate
+ 
+\begin_inset Formula $2^{40}-1$
+\end_inset
+
+
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sum_{k=1}^{n}\binom{n}{k}=\sum_{k=1}^{n}\frac{{n!}}{k!(n-k)!}=2^{n}-1$
+\end_inset
+
+ unique combinations of models
+\end_layout
+
+\end_inset
+
+ major operations, including model fitting and the calculation of relevant
+ statistics.
+ 
+\end_layout
+
+\begin_layout Standard
+For the purposes of this project I intend to investigate Ordinary Least
+ Squares model fitting utilizing the Normal Equations.
+ I intend to implement the library using C++, using the 
+\begin_inset CommandInset href
+LatexCommand href
+name "Armadillo C++ linear algebra library"
+target "http://arma.sourceforge.net/"
+
+\end_inset
+
+ library and the 
+\begin_inset CommandInset href
+LatexCommand href
+name "Rcpp"
+target "http://rcpp.org/"
+
+\end_inset
+
+ family of R and C++ implementations, especially RcppArmadillo
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset CommandInset href
+LatexCommand href
+name "Dirk Eddelbuttel"
+target "http://dirk.eddelbuettel.com/code/"
+
+\end_inset
+
+ is a major maintainer of the Rcpp library, and actively involved in the
+ Debian Project
+\end_layout
+
+\end_inset
+
+.
+ While fitting one model is trivial, the goal of best subsets regression
+ is to evaluate each combination of models, which becomes quite complex
+ in both count of operation and memory requirements.
+ 
+\end_layout
+
+\begin_layout Part
+Methodology
+\end_layout
+
+\begin_layout Standard
+There are a few calculations extremely important to Ordinary Least Squares
+ Regression.
+ For the following equations 
+\begin_inset Formula $X$
+\end_inset
+
+ indicates a 
+\begin_inset Formula $n$
+\end_inset
+
+-rows by 
+\begin_inset Formula $p$
+\end_inset
+
+-column matrix of predictors, 
+\begin_inset Formula $Y$
+\end_inset
+
+ indicates a the column vector of responses with 
+\begin_inset Formula $n$
+\end_inset
+
+-rows and 
+\begin_inset Formula $b$
+\end_inset
+
+ indicates the vector of sample estimators for 
+\begin_inset Formula $\beta$
+\end_inset
+
+, the population regression coefficients.
+ Additinally, 
+\begin_inset Formula $I$
+\end_inset
+
+ will represent the Identity Matrix, and 
+\begin_inset Formula $J$
+\end_inset
+
+ will represent a 
+\begin_inset Formula $n$
+\end_inset
+
+-row by 
+\begin_inset Formula $n$
+\end_inset
+
+-column square matrix filled with ones.
+\end_layout
+
+\begin_layout Standard
+The most
+\end_layout
+
+\begin_layout Description
+\begin_inset Tabular
+<lyxtabular version="3" rows="4" columns="4">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Source of Variation
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Sum of Squares
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+degrees of freedom
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Mean Square
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Regression
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $SS_{R}=b^{T}X^{T}Y-\left(\frac{1}{n}\right)Y^{T}JY$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $df_{R}=p-1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $MS_{R}=\frac{SS_{R}}{df_{R}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Error
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $SS_{E}=Y^{T}Y-b^{T}X^{T}Y$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $df_{E}=n-p$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $MS_{E}=\frac{SS_{E}}{df_{E}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Total
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $SS_{TO}=Y^{T}Y-\left(\frac{1}{n}\right)Y^{T}JY$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $df_{TO}=n-1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document

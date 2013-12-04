@@ -1,25 +1,25 @@
 
 #' @export
-Rcpp::loadModule( "Regression", what = c("Data", "Output", "OutVec", "LS") )
+Rcpp::loadModule( "Regression", what = c("Data", "Output", "OutVec", "LS", "Combination") )
 
-BestSubset <- function(vec, mat, omp = FALSE, returns = "data.frame") {
-	stopifnot(is.numeric(vec))
-	stopifnot(is.numeric(mat) && is.matrix(mat))
-	
-	ls <- new(LS, vec, mat)
-	
-	if (omp) {
-		ls$ompBestSubset()
-	} else {
-		ls$BestSubset()
-	}
-	
-	if ("data.frame" == returns) {
-		return (ls$data$data.frame)
-	} else {
-		return (ls)
-	}
-}
+# BestSubset <- function(vec, mat, omp = FALSE, returns = "data.frame") {
+# 	stopifnot(is.numeric(vec))
+# 	stopifnot(is.numeric(mat) && is.matrix(mat))
+# 	
+# 	ls <- new(LS, vec, mat)
+# 	
+# 	if (omp) {
+# 		ls$ompBestSubset()
+# 	} else {
+# 		ls$BestSubset()
+# 	}
+# 	
+# 	if ("data.frame" == returns) {
+# 		return (ls$data$data.frame)
+# 	} else {
+# 		return (ls)
+# 	}
+# }
 
 
 
@@ -67,7 +67,7 @@ BestSubset <- function(vec, mat, omp = FALSE, returns = "data.frame") {
 # 	i$print()
 # }
 # 
-
+# 
 # library(RcppRegression)
 # library(ggplot2)
 # library(microbenchmark)
