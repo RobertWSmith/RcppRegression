@@ -1,0 +1,1317 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\begin_preamble
+\usepackage{graphicx}
+
+\usepackage{footnote}
+\makesavenoteenv{tabular}
+
+\usepackage{hyperref}
+ \hypersetup{colorlinks=true,urlcolor=blue,linkcolor=black}
+
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\end_preamble
+\use_default_options true
+\begin_modules
+knitr
+\end_modules
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman times
+\font_sans helvet
+\font_typewriter courier
+\font_default_family rmdefault
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format pdf2
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize 12
+\spacing single
+\use_hyperref false
+\papersize letterpaper
+\use_geometry true
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 2.5cm
+\topmargin 2.5cm
+\rightmargin 2.5cm
+\bottommargin 2.5cm
+\secnumdepth 2
+\tocdepth 2
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+\paragraph_spacing onehalf
+Best Subsets Regression
+\begin_inset Newline newline
+\end_inset
+
+Parallel Programming
+\end_layout
+
+\begin_layout Author
+\paragraph_spacing onehalf
+Robert Smith
+\end_layout
+
+\begin_layout Part
+\paragraph_spacing onehalf
+Background
+\end_layout
+
+\begin_layout Standard
+\paragraph_spacing onehalf
+Linear Regression is a broad topic in Statistics, and for the purpose of
+ this project I intend to focus on Ordinary Least Squares (OLS) Regression.
+ Finding the best subsets for OLS involves comparing the regression outputs
+ and select statistics and keeping the combination of predictors which minimize
+ the number of required predictors and maximize the fit of the model.
+ The Sum of Squared Errors (SSE) is the simplest form of regression comparison
+ (where the smallest value is preferred), but this value is artificially
+ minimized by adding new predictors that add little value to the model.
+ Therefore the ideal linear model minimizes the number of predictor values
+ while maximizing the model fit.
+ 
+\end_layout
+
+\begin_layout Section
+\paragraph_spacing onehalf
+Problem
+\end_layout
+
+\begin_layout Standard
+\paragraph_spacing onehalf
+In response to the problem of optimizing models for a best subset of predictors
+ a few major statistics are used to compare models for best subsets are
+ Mallow's Cp, the Akaike Information Criterion (AIC) and the Akaike Information
+ Criterion corrected
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+Akaike Information Criterion corrected for finite sample size
+\end_layout
+
+\end_inset
+
+ (AICc), among others.
+ While each of these computations are relatively light by themselves, the
+ majority of the work will be parallelizing the largest body of the work:
+ making 
+\begin_inset Formula $2^{k}-1$
+\end_inset
+
+
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sum_{k=1}^{n}\binom{n}{k}=\sum_{k=1}^{n}\frac{n!}{k!\left(n-k\right)!}=2^{k}-1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+ comparisons, where 
+\begin_inset Formula $k$
+\end_inset
+
+ is the number of predictors.
+ At low values of 
+\begin_inset Formula $k$
+\end_inset
+
+ I expect the serial and parallel algorithms to be relatively small but
+ as the workloads increase above that range I expect significant speedups.
+ 
+\end_layout
+
+\begin_layout Standard
+\paragraph_spacing onehalf
+To accomplish the goal of building a Regression library which has an implementat
+ion of the best subset regression serial and parallelized versions and compare
+ the processing times.
+ Additionally, if time permits I would like to investigate LOESS regression,
+ which should be good to implement in parallel.
+ I would also like to attempt to expand the regression library to be able
+ to handle missing values and non-numeric / factor analysis.
+\end_layout
+
+\begin_layout Section
+\paragraph_spacing onehalf
+Implementation with R
+\end_layout
+
+\begin_layout Subsubsection
+Background
+\end_layout
+
+\begin_layout Standard
+\paragraph_spacing onehalf
+I used the 
+\family typewriter
+Rcpp
+\family default
+ API to author a distributable 
+\family typewriter
+R
+\family default
+ library to calculate the best subset of regression predictors faster utilizing
+ 
+\family typewriter
+openMP
+\family default
+.
+ 
+\family typewriter
+R
+\family default
+ is designed as a single-threaded application, so to utilize any multi-threaded
+ libraries the object must be converted to types which support multi-threaded
+ applications.
+ Additionally, while 
+\family typewriter
+R
+\family default
+ is written in a combination of 
+\family typewriter
+C
+\family default
+ and 
+\family typewriter
+FORTRAN
+\family default
+, much of the draw to the 
+\family typewriter
+Rcpp
+\family default
+ API to me is being able to utilize 
+\family typewriter
+C++
+\family default
+ as a development environment and source of libraries.
+ After some testing and implementation I also found that 
+\family typewriter
+R
+\family default
+ containers are off-limits to multi-threaded applications so I designed
+ a few 
+\family typewriter
+C++
+\family default
+ classes to contain the data and aide with some member functions that were
+ required.
+ Additionally, I invested the time to expose these 
+\family typewriter
+C++
+\family default
+ classes to the 
+\family typewriter
+R
+\family default
+ so that the data could be retrieved easily and create the small library
+ that I titled RcppRegression 
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+\paragraph_spacing onehalf
+
+\family typewriter
+\begin_inset CommandInset href
+LatexCommand href
+name "https://github.com/RobertWSmith/RcppRegression"
+target "https://github.com/RobertWSmith/RcppRegression"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Subsubsection
+Formulas
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="6" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Statistic
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Formula
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Ordinary Least Squares
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\beta=\left(X^{T}X\right)^{-1}X^{T}Y$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Sum of Squared Errors
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $SSE=\sum\left(Y-\hat{\beta}\right)^{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Mean Squared Error
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $MSE=\frac{SSE}{n-p}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Akaike Information Criterion (AIC)
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $AIC=n+n\ln\left(SSE\right)+2\left(p+1\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Mallow's Cp
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $Cp=\frac{SSE}{MSE}-(n-2p)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Algorithm
+\end_layout
+
+\begin_layout Standard
+The process is implemented as such:
+\end_layout
+
+\begin_layout Enumerate
+Allocate vectors for 
+\family typewriter
+combination_tracker, current_iter, current_subset
+\end_layout
+
+\begin_layout Enumerate
+Allocate matrix 
+\family typewriter
+X
+\end_layout
+
+\begin_layout Enumerate
+Allocate column vector 
+\family typewriter
+Y
+\end_layout
+
+\begin_layout Enumerate
+Allocate 
+\family typewriter
+output
+\family default
+ & 
+\family typewriter
+current_iter struct { aic, beta, cp, sse, mse }
+\end_layout
+
+\begin_layout Enumerate
+Allocate 
+\family typewriter
+max_output
+\family default
+ 
+\begin_inset Formula $\leftarrow$
+\end_inset
+
+ One of 
+\begin_inset Formula $[0,\infty)$
+\end_inset
+
+ -- user's choice
+\end_layout
+
+\begin_layout Enumerate
+Set 
+\family typewriter
+output.aic
+\family default
+ 
+\begin_inset Formula $\leftarrow\infty$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+
+\family typewriter
+For 
+\begin_inset Formula $k=1$
+\end_inset
+
+ to 
+\begin_inset Formula $n$
+\end_inset
+
+ do the following
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+subset 
+\family typewriter
+X
+\family default
+ by appropriate combination of predictors and save as 
+\family typewriter
+tempX
+\end_layout
+
+\begin_layout Enumerate
+calculate beta and save as 
+\family typewriter
+current_iter.beta
+\end_layout
+
+\begin_layout Enumerate
+calculate SSE and save as 
+\family typewriter
+current_iter.sse
+\end_layout
+
+\begin_layout Enumerate
+calculate MSE and save as 
+\family typewriter
+current_iter.mse
+\end_layout
+
+\begin_layout Enumerate
+calculate AIC and save as 
+\family typewriter
+current_iter.aic
+\end_layout
+
+\begin_layout Enumerate
+calculate Cp and save as 
+\family typewriter
+current_iter.cp
+\end_layout
+
+\begin_layout Enumerate
+Sorted insert into output by 
+\family typewriter
+current_input.aic < output.aic
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+if 
+\family typewriter
+sizeof(output) < max_output
+\family default
+ then drop extraneous elements
+\end_layout
+
+\end_deeper
+\end_deeper
+\begin_layout Enumerate
+End main
+\end_layout
+
+\begin_layout Standard
+In summary, the main loop of this problem is 
+\begin_inset Formula $O(2^{n})$
+\end_inset
+
+ and per the Armadillo documentation the linear algebra portions are dependent
+ upon the 
+\family typewriter
+BLAS
+\family default
+ or 
+\family typewriter
+LAPACK
+\family default
+ libraries which Armadillo links to.
+ In my case, I tested the library on a 
+\family typewriter
+Intel Core i5-3317U CPU @ 1.70GHz × 4
+\family default
+, my local 
+\family typewriter
+BLAS
+\family default
+ version is 
+\family typewriter
+libblas3gf 1.2.20110419-2ubuntu1
+\family default
+ and the 
+\family typewriter
+LAPACK
+\family default
+ version is 
+\family typewriter
+liblapack3gf 3.3.1-1 0
+\family default
+.
+ One additional interesting feature of Armadillo is that the syntax is portable,
+ and in their documentation they note that the standard 
+\family typewriter
+BLAS
+\family default
+ and 
+\family typewriter
+LAPACK
+\family default
+ can be replaced with the multi-threaded 
+\family typewriter
+openBLAS
+\family default
+, 
+\family typewriter
+Intel's MKL
+\family default
+ or 
+\family typewriter
+AMD's AMCL
+\family default
+ libraries by simply linking explicitly when compiling.
+ I elected to use the single threaded libraries because I did not want to
+ require a custom 
+\family typewriter
+R
+\family default
+ instance in order to use the library I was creating.
+\end_layout
+
+\begin_layout Subsubsection
+Parallelization
+\end_layout
+
+\begin_layout Standard
+Many opportunities exist, as no model fit depends on any other being completed,
+ so given infinite processors the longest running time would be the time
+ it takes to complete the calculations for 
+\begin_inset Formula $\binom{n}{n}$
+\end_inset
+
+ where the largest matrix is evaluated.
+ For the purposes of this project I first attempted a fine-grained parallelism,
+ launching threads to try to evenly distribute the load within each k block
+ of 
+\begin_inset Formula $\binom{n}{k}$
+\end_inset
+
+.
+ Unfortunately, after many different attempts I was unable to achieve a
+ working model using this technique.
+ I was finally able to implement parallelism when I realized that it would
+ be far simpler to launch one thread for each k block and allow it to handle
+ iterating over combinations.
+ 
+\end_layout
+
+\begin_layout Standard
+The biggest draw for this implementation of parallelism is that it requires
+ only one parallel block, and very few critical sections due to the only
+ thread interaction being to insert their findings in the global output
+ container at the end of their execution.
+ When confirming with my system monitor, I noted that during benchmarks
+ where I've repeated the calculations numerous times that the parallel version
+ keeps my CPU monitor near 100% whereas the serial algorithm keeps my computer
+ around 25%.
+\end_layout
+
+\begin_layout Subsubsection
+Testing
+\end_layout
+
+\begin_layout Standard
+To test the 
+\family typewriter
+RcppRegression
+\family default
+ library, I decided that since the 
+\family typewriter
+R
+\family default
+ interface was how I was expecting this library to be accessed I would test
+ it as such.
+ I've included the 
+\family typewriter
+R
+\family default
+ code for my tests below, and some statistics regarding timings of multiple
+ runs of the function with two matrix sizes (10 & 15 columns, respectively).
+ A preliminary analysis would say that for the 10 column problem will have
+ approximately 
+\begin_inset Formula $2^{10}-1=1,023$
+\end_inset
+
+ total models to fit and the 15 column problem will have 
+\begin_inset Formula $2^{15}-1=32,768$
+\end_inset
+
+ total models to fit.
+ This exponential trend is the type of problem which lends itself to being
+ called 'embarassingly parallel', and can easily benefit from implementing
+ calculations in parallel.
+ 
+\end_layout
+
+\begin_layout Standard
+Before discussing the results of the tests, I'd like to mention that during
+ the initial testing phase I was surprised to see that the openMP version
+ of the program was performing poorer in all cases when compared to the
+ serial version.
+ It was at this point that I learned the importance of utilizing the optimizatio
+n flags; additionally 
+\family typewriter
+-O1
+\family default
+ and 
+\family typewriter
+-O2
+\family default
+ seemed to be ineffective but 
+\family typewriter
+-O3
+\family default
+ shows the results that will be presented momentarily.
+ I intend to experiment further with compiler optimizations.
+\end_layout
+
+\begin_layout Subsubsection
+Discussion
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways true
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename /home/rob/GitHub/RcppRegression/10cols.pdf
+	width 90page%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Tabular
+<lyxtabular version="3" rows="3" columns="7">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Unit: milliseconds 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+min
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+25%
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+median
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+75%
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+max
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+replications
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+10 Column - Serial
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+94.00281
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+96.26356
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+98.09211
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+100.15251
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+130.27468
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1000
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+10 Column - Parallel
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+48.36210
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+49.05565
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+49.69009
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+51.56783
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+71.06513
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1000
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways true
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename /home/rob/GitHub/RcppRegression/15cols.pdf
+	width 90page%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Tabular
+<lyxtabular version="3" rows="3" columns="7">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Unit: seconds
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+min
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+25%
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+median
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+75%
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+max
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+evaluations
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+15 Column - Serial
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+4.950119
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+5.018221
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+5.101726
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+5.165247
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+ 6.139746
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+50
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+15 Column - Parallel
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2.681785
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2.718979
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2.769870
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2.814503
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2.928120
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+50
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The plots show the smoothed, reflected densities of the serial vs.
+ parallel implementations of the best subset regression finding algorithm.
+ As we can see, in general the best 95+%, (in particular for this case,
+ all but the maximum 
+\family typewriter
+openMP
+\family default
+ time are faster) even for small regression problems are faster than the
+ serial version which is expected.
+ When looking at the raw time output I note that when there are 
+\family typewriter
+openMP
+\family default
+ timings which are exceptionally high they are generally the only one of
+ the set, and I expect that is the result of the very first launching of
+ threads.
+ In the above 10 column case, we can also note that the maximum 
+\family typewriter
+openMP
+\family default
+ time only took fractions of a microsecond longer than the very fastest
+ serial version.
+ Parallel programming will make an amazing impact on the future of statistical
+ data analysis due to the incredibly large number of embarrassingly parallel
+ problems such as the one demonstrated above.
+\end_layout
+
+\begin_layout Standard
+After completing this project, if I were to do this all over again I would
+ choose to spend more time building a thread-safe basis such as thread-safe
+ versions of the most often used portions of the 
+\family typewriter
+STL
+\family default
+.
+ I also believe substituting the fine grained control 
+\family typewriter
+pthreads
+\family default
+ offers over 
+\family typewriter
+openMP
+\family default
+ would bring further optimization to the code.
+ Overall, I believe the algorithmic implementation would have been greatly
+ sped up with greater thread safety as it would of allowed me to think less
+ about the race conditions and more about framing the problem with a multi-threa
+ded mindset.
+ Additionally, I would like to learn and/or experiment a bit more regarding
+ about how the 
+\family typewriter
+const
+\family default
+ keyword, references & pointers act under different circumstances.
+ Finally, I am happy that I designed the classes designed for this project
+ without specifying that they must be implemented using the R framework
+ -- and that they will be portable to pure 
+\family typewriter
+C++
+\family default
+ code that I might need in the future.
+ 
+\end_layout
+
+\begin_layout Standard
+I'm happy to note that this tool will be of use to me in the future and
+ while I wasn't able to begin working on the LOESS algorithm I do intend
+ to pursue that in the future after the kinks are worked out of the regression
+ model.
+ Additionally, many simple statistics such as the mean are simple extensions
+ of the parallel sum operation we discussed earlier in the course, and calculati
+ng the standard deviation is parallelizable after the global mean has been
+ calculated.
+ Many of the sorting algorithms we discussed are of importance to the nonparamet
+ric branch of statistics, such as finding the median, quantiles of the distribut
+ion, among other simple statistics.
+\end_layout
+
+\begin_layout Standard
+Additionally, I would like to work on other algorithms for finding best
+ subsets, such as applying machine learning / AI strategies to prune paths
+ which are not worthwhile.
+ I believe a hill-climbing algorithm would be well suited to this application,
+ and would probably be able to consider hundreds of predictors in short
+ order.
+\end_layout
+
+\begin_layout Section
+Conclusion
+\end_layout
+
+\begin_layout Standard
+I believe my parallel implementation of best subsets regression to be successful
+, though it still requires further optimization.
+ That it can perform the benchmarks above and not completely overload as
+ modest a computer as I mentioned above indicates to me that given further
+ resources it would be quite quick and may even allow a machine like mine
+ to overcome the 40 predictor limit noted above.
+ 
+\end_layout
+
+\begin_layout Standard
+I found the project challenging and enlightening overall, it was a great
+ experience attempting to implement a project like this in parallel.
+ It really helped me learn to think about designing programs in a different
+ way and the considerations necessary for scientific computing problems
+ for the future.
+ 
+\end_layout
+
+\end_body
+\end_document

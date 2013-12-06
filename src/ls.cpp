@@ -60,7 +60,7 @@ LS& LS::operator=( const LS& rhs ) {
 Output LS::OLS(std::vector<unsigned int> input) {
 	
 	// advanced constructors offer speed benefits becuase X & Y are not changed
-	arma::mat localX = *( subsetX(input) );
+	arma::mat localX( subsetX(input) );
 	
 	Output o;
 	o.columns = input;

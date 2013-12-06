@@ -57,7 +57,7 @@ void Data::clear() {
  * @param \code{columns} to keep
  * @return \code{arma::mat} reference to perform operations on.
  */ 
-arma::mat* Data::subsetX(std::vector<unsigned int> columns) {
+arma::mat Data::subsetX(std::vector<unsigned int> columns) {
 	std::sort( columns.begin(), columns.end() );
 	arma::mat output( getX().n_rows, ( 1 + columns.size() ), arma::fill::zeros );
 	
@@ -66,7 +66,7 @@ arma::mat* Data::subsetX(std::vector<unsigned int> columns) {
 	}
 	output.col(0).ones();
 	
-	return ( arma::mat *) &output;
+	return output;
 }
 	
 void Data::setX(const arma::mat& Xi) {

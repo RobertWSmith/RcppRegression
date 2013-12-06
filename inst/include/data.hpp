@@ -30,7 +30,7 @@ public:
 	
 	virtual void clear();
 
-	virtual arma::mat* subsetX( std::vector<unsigned int> );	
+	virtual arma::mat subsetX( std::vector<unsigned int> );	
 	
 	virtual void setX( const arma::mat& );
 	virtual void setY( const arma::colvec& ); 
